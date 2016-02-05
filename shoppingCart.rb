@@ -1,12 +1,27 @@
+require 'colorize'
 
-require 'pry'
 class ShoppingCart
 	attr_reader :items
-	def initialize(pricelist,season)
+	def initialize(pricelist)
 		@pricelist = pricelist
-		@items = []
-		@season = season
-		@day = :sunday #should get day from Day, but for testing... 
+		@items = []	
+		@today = Time.now
+		@discount_total = 0
+		@season = set_season(@today)
+	end
+
+	def set_season(day)
+		s = day.yday / 91
+		case s
+		when 0
+			@season = :winter
+		when 1
+			@season = :spring
+		when 2
+			@season = :summer
+		else
+			@season = :autumn
+		end
 	end
 
 	def add_item_to_cart(item)
@@ -36,22 +51,22 @@ class ShoppingCart
 			
 			case key
 			when :apple
-	 			dQty = qty % 2 > 0 ? qty / 2+1 : qty / 2	 		
-	 			disc_total += @pricelist[key][@season] * dQty	
-			when :orange
-				myMod = qty % 3 
-				dQty = qty / 3 + myMod  
-				disc_total += @pricelist[key][@season]  * dQty
+				puts "Apples: Buy 2 pay for 1!"
+	 			accumulate_discount_total(@pricelist[key][@season],get_disc_qty(qty,2)) 			
+			when :orange 
+				puts "Oranges: Buy 3 pay just for 2!"
+				accumulate_discount_total(@pricelist[key][@season],get_disc_qty(qty,3))
 	 		when :grapes
+	 			puts "Grapes: Buy 4 get a free banana!"
 	 			extra_bananas = (qty / 4).round(0)
-	 			disc_total += @pricelist[key][@season]  * qty
+	 			accumulate_discount_total(@pricelist[key][@season],qty)
 	 		when :banana
-	 			disc_total += @pricelist[key][@season]  * qty
+	 			accumulate_discount_total(@pricelist[key][@season],qty)
 	 		when :watermelon
-	 			watermelonCost = @pricelist[key][@season]  * qty
-	 			@day == :sunday ?  watermelonCost *= 2 :
-		 		disc_total += watermelonCost
-		 		binding.pry
+	 			puts "Watermelon: Half price weekdays & Saturday!"
+	 			watermelonCost = @pricelist[key][@season]  
+	 			@today.sunday? ?  watermelonCost : watermelonCost/2
+		 		accumulate_discount_total(watermelonCost,qty)
 	 		end
 
 		end
@@ -62,21 +77,30 @@ class ShoppingCart
 			end
 		end
 		
-		disc_total
+		@discount_total
 		
 	end
 
+	def get_disc_qty(qty,num)
+		rem = qty % num
+		dQty = qty / num + rem
+	end
+	
+	def accumulate_discount_total(price,qty)
+
+		@discount_total += price * qty
+	end
 end
 
 prices = { apple: {spring: 10, summer: 10, autumn: 15, winter: 12},
 			orange: {spring: 5, summer: 2, autumn: 5, winter: 5},
 			grapes: {spring: 15, summer: 15, autumn: 15, winter: 15},
 			banana: {spring: 20, summer: 20, autumn: 20, winter: 21},
-			watermelon: {spring: 50, summer: 50, autumn: 50, winter: 50}
+			watermelon: {spring: 100, summer: 100, autumn: 100, winter: 100}
 		}
 
 
-cart = ShoppingCart.new(prices,:winter)
+cart = ShoppingCart.new(prices)
 
 cart.add_item_to_cart :apple
 cart.add_item_to_cart :apple
@@ -93,5 +117,5 @@ cart.add_item_to_cart :watermelon
 
 cart.show
 
-puts "Total cost is: $#{cart.cost}"
-puts "Discounted cost is: $#{cart.apply_discount}"
+puts "Total cost is: $#{cart.cost}".colorize(:red)
+puts "Discounted cost is: $#{cart.apply_discount}".colorize(:green)
